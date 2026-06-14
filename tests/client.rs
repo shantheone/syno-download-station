@@ -716,11 +716,11 @@ async fn test_client_builds_with_accept_invalid_certs() {
 
 #[tokio::test]
 async fn test_accept_invalid_certs_can_make_request() {
-    let (mut server, _) = setup_client().await;
+    let mut server = MockServer::start().await;
 
-    // Build a client with accept_invalid_certs enabled
+    // Build client with accept_invalid_certs enabled
     let synods = SynoDS::builder()
-        .url("https://nas:5001")
+        .url(server.uri())
         .username("test")
         .password("test123")
         .danger_accept_invalid_certs(true)
@@ -729,8 +729,9 @@ async fn test_accept_invalid_certs_can_make_request() {
 
     create_login_mock(&mut server).await;
 
-    // Verify the client can still make requests normally
     let result = synods.authorize().await;
     assert!(result.is_ok());
     assert!(synods.is_authorized().await);
+
+    server.verify().await;
 }
