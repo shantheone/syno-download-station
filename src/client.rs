@@ -71,7 +71,13 @@ impl SynoDS {
     /// - Username, password, or host URL is empty
     /// - URL doesn't start with "http://" or "https://"
     #[allow(clippy::needless_pass_by_value)]
-    pub fn new(url: String, username: String, password: String, timeout_ms: u64) -> Result<Self> {
+    pub fn new(
+        url: String,
+        username: String,
+        password: String,
+        timeout_ms: u64,
+        accept_invalid_certs: bool,
+    ) -> Result<Self> {
         // Validate all required configuration parameters
         if username.is_empty() {
             return Err(Configuration("Username cannot be empty".into()).into());
@@ -96,7 +102,7 @@ impl SynoDS {
         // Remove trailing slash from host URL if present
         let url = url.trim_end_matches('/').to_string();
 
-        let client = Self::create_client(timeout_ms);
+        let client = Self::create_client(timeout_ms, accept_invalid_certs);
 
         Ok(Self {
             url,
@@ -108,9 +114,10 @@ impl SynoDS {
     }
 
     /// Creates a configured HTTP client
-    fn create_client(timeout: u64) -> Client {
+    fn create_client(timeout: u64, accept_invalid_certs: bool) -> Client {
         Client::builder()
             .timeout(Duration::from_millis(timeout))
+            .danger_accept_invalid_certs(accept_invalid_certs)
             .build()
             .unwrap_or_default()
     }
@@ -730,6 +737,7 @@ pub struct SynoDSBuilder {
     username: Option<String>,
     password: Option<String>,
     timeout: Option<u64>,
+    accept_invalid_certs: bool,
 }
 
 impl SynoDSBuilder {
@@ -761,6 +769,13 @@ impl SynoDSBuilder {
         self
     }
 
+    /// Sets whether to accept invalid/self-signed certificates
+    #[must_use]
+    pub fn danger_accept_invalid_certs(mut self, accept: bool) -> Self {
+        self.accept_invalid_certs = accept;
+        self
+    }
+
     /// Builds the [`SynoDS`] client
     ///
     /// # Errors
@@ -782,7 +797,7 @@ impl SynoDSBuilder {
 
         let timeout = self.timeout.unwrap_or(3000);
 
-        let client = SynoDS::new(url, username, password, timeout)?;
+        let client = SynoDS::new(url, username, password, timeout, self.accept_invalid_certs)?;
 
         Ok(client)
     }
